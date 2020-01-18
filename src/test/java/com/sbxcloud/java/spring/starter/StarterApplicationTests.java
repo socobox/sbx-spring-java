@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import javax.security.auth.login.LoginException;
 import java.util.Arrays;
 
 @SpringBootTest
@@ -23,10 +24,19 @@ class StarterApplicationTests {
     @Test
     void contextLoads() {
 
-        Mono<SbxResponse<Product>> res = svc.find(Product.class, System.getenv("TEST_USER_TOKEN"))
-                .andWhereIsEqualTo("active", true)
-                .andWhereIsEqualTo("grower.active", true)
-                .fetchModels(Arrays.asList("variety", "product_group", "variety.color")).send();
+        Mono<SbxResponse<Product>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
+                .flatMap(loginResponse -> {
+
+                    if (!loginResponse.getSuccess()) {
+                        return Mono.error(new LoginException("Invalid Credentials"));
+                    }
+
+                    return svc.find(Product.class, loginResponse.getToken())
+                            .andWhereIsEqualTo("active", true)
+                            .andWhereIsEqualTo("grower.active", true)
+                            .fetchModels(Arrays.asList("variety", "product_group", "variety.color")).send();
+                });
+
 
         StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
             System.out.println(productSbxResponse.getResults());

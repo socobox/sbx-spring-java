@@ -3,6 +3,7 @@ package com.sbxcloud.java.spring.starter.sbxcore;
 
 import com.sbxcloud.java.spring.starter.sbxcore.dao.SbxCoreRepository;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
+import com.sbxcloud.java.spring.starter.sbxcore.login.LoginResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.QueryBuilder;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXModel;
 import org.slf4j.Logger;
@@ -59,6 +60,10 @@ public class SbxCore {
     }
 
 
+    public Integer currentDomain(){
+        return environment.getDomain();
+    }
+
     public <T> Find<T> find(Class<T> clazz, String token) {
         return new Find<>(clazz, sbxCoreRepository, token);
     }
@@ -71,6 +76,11 @@ public class SbxCore {
 
         String body = new QueryBuilder().setModel(model).setDomain(SbxCore.environment.getDomain()).addObjectArray(data).compile();
         return sbxCoreRepository.upsert(clazz, body, token);
+    }
+
+
+    public Mono<LoginResponse>  login(String user, String password, Integer domainId) {
+        return sbxCoreRepository.login(user, password, domainId);
     }
 
     public <T> Mono<SbxResponse<T>>  upsert(T object, String token) {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sbxcloud.java.spring.starter.sbxcore.SbxCore;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
+import com.sbxcloud.java.spring.starter.sbxcore.login.LoginResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -25,6 +27,8 @@ import java.util.*;
 @Repository
 public class SbxCoreRepositoryImpl implements SbxCoreRepository {
 
+
+
   private static final Logger log = LoggerFactory.getLogger(SbxCoreRepositoryImpl.class);
 
   private static Logger LOG = LoggerFactory.getLogger(SbxCoreRepository.class);
@@ -34,6 +38,8 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
   private String sbxFind = SbxCore.getUrl("find");
 
   private String sbxUpdate = SbxCore.getUrl("update");
+
+  private String sbxLogin = SbxCore.getUrl("login");
 
   private String sbxInsert = SbxCore.getUrl("row");
   private String sbxSendEMail = SbxCore.getUrl("sendMail");
@@ -81,20 +87,46 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
     }
   }
 
+  @Override
+  public Mono<LoginResponse> login(String user, String password, Integer domainId) {
+
+    ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
+            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 5000)).build();
+
+    WebClient webClient = WebClient.builder().exchangeStrategies(exchangeStrategies).build();
+
+
+
+
+    return webClient.get()
+            .uri(UriComponentsBuilder
+                    .fromHttpUrl(sbxLogin)
+                    .queryParam("domain", domainId)
+                    .queryParam("login", user)
+                    .queryParam("password", password).toUriString())
+            .headers(httpHeaders -> httpHeaders.setAll(getHeaders(null).toSingleValueMap()))
+            .accept(MediaType.APPLICATION_XML)
+            .exchange()
+            .flatMap(res -> {
+              return res.bodyToMono(LoginResponse.class);
+            });
+
+  }
+
   private HttpHeaders getHeaders(String token) {
     HttpHeaders headers = new HttpHeaders();
     headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
     headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.setBearerAuth(token);
+    Optional.ofNullable(token).ifPresent(headers::setBearerAuth);
     headers.set("App-Key", SbxCore.environment.getAppKey());
     return headers;
   }
 
   private <T> Mono<SbxResponse<T>> getSbxResponse(String url, String body, Class<?> clazz, String token) throws IOException {
 
-
     ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
-            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1000)).build();
+            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 5000)).build();
+
     WebClient webClient = WebClient.builder().exchangeStrategies(exchangeStrategies).build();
 
 
