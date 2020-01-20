@@ -8,6 +8,8 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 
+export GPG_TTY=$(tty)
+
 mvn versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
 mvn clean deploy -B -P release -DskipTests
 git checkout .
