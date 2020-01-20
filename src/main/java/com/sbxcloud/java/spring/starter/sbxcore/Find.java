@@ -7,11 +7,23 @@ import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.ANDOR;
 import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.OP;
 import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.QueryBuilder;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-public class Find<T> {
+public final class Find<T> {
+
+
+    private static Logger LOG = LoggerFactory.getLogger(Find.class);
 
     private QueryBuilder query;
 
@@ -34,7 +46,68 @@ public class Find<T> {
         return this.query.compile();
     }
 
-    public Mono<SbxResponse<T>> send() {
+    public Mono<SbxResponse<T>> loadAllPages() {
+
+        return loadPage(1)
+                .flatMap(tSbxResponse -> {
+
+
+                    // If there was an error
+                    if (!tSbxResponse.getSuccess()) {
+                        return Mono.just(tSbxResponse);
+                    }
+
+                    LinkedList<T> items = new LinkedList<T>(tSbxResponse.getResults());
+
+                    HashMap<String, HashMap<String, Map<String, Object>>> fetch = new HashMap<>(new HashMap<>());
+
+                    if (tSbxResponse.getFetchModels() != null) {
+                        merge(tSbxResponse.getFetchModels(), fetch);
+                    }
+
+                    return Flux.fromIterable(IntStream.rangeClosed(2, tSbxResponse.getTotalPages())
+                            .boxed()
+                            .collect(Collectors.toList()))
+                            .delayElements(Duration.ofMillis(500))
+                            .flatMap(this::loadPage)
+                            .map(res -> {
+                                items.addAll(res.getResults());
+                                if (res.getFetchModels() != null) {
+                                    merge(res.getFetchModels(), fetch);
+                                }
+                                return res;
+                            })
+                            .collectList()
+                            .map(ls -> {
+                                tSbxResponse.setFetchModels(fetch);
+                                tSbxResponse.setResults(items);
+                                return tSbxResponse;
+                            });
+
+                });
+    }
+
+
+    private void merge(HashMap<String, HashMap<String, Map<String, Object>>> source, HashMap<String, HashMap<String, Map<String, Object>>> target) {
+
+
+        source.forEach((modelName, rows) -> {
+
+            if (!target.containsKey(modelName)) {
+                target.put(modelName, new HashMap<>());
+            }
+
+            HashMap<String, Map<String, Object>> rowMap = target.get(modelName);
+
+            rows.forEach(rowMap::put);
+
+        });
+    }
+
+
+    public Mono<SbxResponse<T>> loadPage(Integer page) {
+        System.out.println(("Loading page: "+page));
+        this.setPage(page);
         return sbxCoreRepository.find(type, this.compile(), token);
     }
 

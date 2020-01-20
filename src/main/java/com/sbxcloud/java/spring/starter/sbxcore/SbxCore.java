@@ -2,20 +2,20 @@ package com.sbxcloud.java.spring.starter.sbxcore;
 
 
 import com.sbxcloud.java.spring.starter.sbxcore.dao.SbxCoreRepository;
+import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxCloudScriptResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.login.LoginResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.QueryBuilder;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SbxCore {
 
@@ -56,11 +56,11 @@ public class SbxCore {
 
         environment.setDomain(domain);
         environment.setAppKey(appKey);
-      this.sbxCoreRepository = sbxCoreRepository;
+        this.sbxCoreRepository = sbxCoreRepository;
     }
 
 
-    public Integer currentDomain(){
+    public Integer currentDomain() {
         return environment.getDomain();
     }
 
@@ -79,12 +79,16 @@ public class SbxCore {
     }
 
 
-    public Mono<LoginResponse>  login(String user, String password, Integer domainId) {
+    public Mono<LoginResponse> login(String user, String password, Integer domainId) {
         return sbxCoreRepository.login(user, password, domainId);
     }
 
-    public <T> Mono<SbxResponse<T>>  upsert(T object, String token) {
-      return upsert(Collections.singletonList(object), token);
+    public <T> Mono<SbxResponse<T>> upsert(T object, String token) {
+        return upsert(Collections.singletonList(object), token);
+    }
+
+    public <T> Mono<SbxCloudScriptResponse<T>> run(String cloudScriptKey, Class<T> clazz, Map<String, Object> params, Boolean test, String token) {
+        return sbxCoreRepository.run(cloudScriptKey, clazz, params, test, token);
     }
 
 }
