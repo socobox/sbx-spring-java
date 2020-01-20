@@ -3,16 +3,21 @@ package com.sbxcloud.java.spring.starter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sbxcloud.java.spring.starter.sbxcore.SbxCore;
+import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxCloudScriptResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXModel;
+import com.sbxcloud.java.spring.starter.sbxcore.util.SBXReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.util.Assert;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import javax.security.auth.login.LoginException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @SpringBootTest
 class StarterApplicationTests {
@@ -24,25 +29,139 @@ class StarterApplicationTests {
     @Test
     void contextLoads() {
 
-        Mono<SbxResponse<Product>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
+        Mono<SbxResponse<Audit>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
                 .flatMap(loginResponse -> {
 
                     if (!loginResponse.getSuccess()) {
                         return Mono.error(new LoginException("Invalid Credentials"));
                     }
 
-                    return svc.find(Product.class, loginResponse.getToken())
-                            .andWhereIsEqualTo("active", true)
-                            .andWhereIsEqualTo("grower.active", true)
-                            .fetchModels(Arrays.asList("variety", "product_group", "variety.color")).send();
+                    return svc.find(Audit.class, loginResponse.getToken())
+                            .andWhereIsEqualTo("action", "DELETED")
+                            .fetchModels(Collections.singletonList("user")).loadAllPages();
                 });
 
 
         StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-            System.out.println(productSbxResponse.getResults());
+            return productSbxResponse.getResults().size() == 3496;
+        }).verifyComplete();
+
+    }
+
+
+    @Test
+    void csRun() {
+
+        Mono<SbxCloudScriptResponse<AuditData>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
+                .flatMap(loginResponse -> {
+
+                    if (!loginResponse.getSuccess()) {
+                        return Mono.error(new LoginException("Invalid Credentials"));
+                    }
+
+                    return svc.run("09F4BED8-7976-43E7-8896-DD249B908991", AuditData.class, Collections.emptyMap(), false,loginResponse.getToken());
+                });
+
+
+        StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
+            System.out.println(productSbxResponse.getResponse());
             return productSbxResponse.getSuccess();
         }).verifyComplete();
 
+    }
+
+
+    @SBXModel("user")
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class User {
+
+        private String role;
+
+
+        public String getRole() {
+            return role;
+        }
+
+        public void setRole(String role) {
+            this.role = role;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "role='" + role + '\'' +
+                    '}';
+        }
+    }
+
+
+
+    @SBXModel("audit")
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class Audit {
+
+        private String action;
+
+
+        private String user;
+
+
+        @SBXReference(model = "user", keyField = "user")
+        private User userRef;
+
+        public String getUser() {
+            return user;
+        }
+
+        public void setUser(String user) {
+            this.user = user;
+        }
+
+        public User getUserRef() {
+            return userRef;
+        }
+
+        public void setUserRef(User userRef) {
+            this.userRef = userRef;
+        }
+
+        public String getAction() {
+            return action;
+        }
+
+        public void setAction(String action) {
+            this.action = action;
+        }
+
+
+        @Override
+        public String toString() {
+            return "Audit{" +
+                    "action='" + action + '\'' +
+                    ", user='" + user + '\'' +
+                    ", userRef=" + userRef +
+                    '}';
+        }
+    }
+
+    private static class AuditData{
+
+        private List<Audit> items;
+
+        public List<Audit> getItems() {
+            return items;
+        }
+
+        public void setItems(List<Audit> items) {
+            this.items = items;
+        }
+
+        @Override
+        public String toString() {
+            return "AuditData{" +
+                    "items=" + items +
+                    '}';
+        }
     }
 
 
