@@ -64,7 +64,7 @@ class StarterApplicationTests {
 
 
         StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-            System.out.println(productSbxResponse.getResponse());
+            System.out.println(productSbxResponse.getResponse().getBody());
             return productSbxResponse.getSuccess();
         }).verifyComplete();
 

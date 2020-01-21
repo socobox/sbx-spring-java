@@ -54,7 +54,7 @@ public class SbxCloudScriptResponse<T> {
         this.response = response;
     }
 
-    static class RawResponse<T> {
+    public static class RawResponse<T> {
 
         private T body;
 
