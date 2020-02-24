@@ -1,5 +1,6 @@
 package com.sbxcloud.java.spring.starter;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sbxcloud.java.spring.starter.sbxcore.SbxCore;
@@ -43,7 +44,40 @@ class StarterApplicationTests {
 
 
         StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-            return productSbxResponse.getResults().size() == 3496;
+            return productSbxResponse.getResults().size() >= 3496;
+        }).verifyComplete();
+
+    }
+
+
+    @Test
+    void update() {
+
+
+        Mono<SbxResponse<Audit>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
+                .flatMap(loginResponse -> {
+
+                    if (!loginResponse.getSuccess()) {
+                        return Mono.error(new LoginException("Invalid Credentials"));
+                    }
+
+                    return svc.find(Audit.class, loginResponse.getToken())
+                            .andWhereIsEqualTo("action", "TEST")
+                            .fetchModels(Collections.singletonList("user")).loadAllPages()
+                    .map(response -> response.getResults().stream().findFirst())
+                            .flatMap(it->{
+                                Audit t = it.orElseThrow(IndexOutOfBoundsException::new);
+                                System.out.println(t._KEY);
+                                t.action = "DELETE";
+                                return svc.upsert(Audit.class, t, loginResponse.getToken());
+                            });
+
+
+                });
+
+
+        StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
+            return productSbxResponse.getSuccess();
         }).verifyComplete();
 
     }
@@ -100,12 +134,16 @@ class StarterApplicationTests {
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class Audit {
 
+
+        private String _KEY;
+
         private String action;
 
 
         private String user;
 
 
+        @JsonIgnore
         @SBXReference(model = "user", keyField = "user")
         private User userRef;
 
@@ -141,6 +179,14 @@ class StarterApplicationTests {
                     ", user='" + user + '\'' +
                     ", userRef=" + userRef +
                     '}';
+        }
+
+        public String get_KEY() {
+            return _KEY;
+        }
+
+        public void set_KEY(String _KEY) {
+            this._KEY = _KEY;
         }
     }
 

@@ -1,6 +1,9 @@
 package com.sbxcloud.java.spring.starter.sbxcore;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sbxcloud.java.spring.starter.sbxcore.dao.SbxCoreRepository;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxCloudScriptResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
@@ -11,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.*;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -69,11 +72,29 @@ public class SbxCore {
     }
 
 
-    @SuppressWarnings("unchecked")
-    public <T> Mono<SbxResponse<T>> upsert(List<T> data, String token) {
-        Class<T> clazz = ((Class<T>) ((ParameterizedType) data.getClass().getGenericSuperclass()).getActualTypeArguments()[0]);
-        String model = clazz.getAnnotation(SBXModel.class).value();
+    /**
+     * Utility method to convert a JSON string to a CloudScript response so you can test with simple JSON strings.
+     */
+    public static <T> SbxCloudScriptResponse<T> parseBody(Class<?> clazz, String response) {
+        ObjectMapper mapper = new ObjectMapper();
+        JavaType type = mapper.getTypeFactory().constructParametricType(SbxCloudScriptResponse.class, clazz);
+        try {
+            return mapper.<SbxCloudScriptResponse<T>>readValue(response, type);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
 
+            LOG.error("Error Connecting to SBX: ", e);
+            SbxCloudScriptResponse<T> bad = new SbxCloudScriptResponse<>();
+            bad.setSuccess(false);
+            bad.setError(e.getMessage());
+            return bad;
+        }
+    }
+
+
+    @SuppressWarnings("unchecked")
+    public <T> Mono<SbxResponse<T>> upsert(Class<T> clazz , List<T> data,String token) {
+        String model = clazz.getAnnotation(SBXModel.class).value();
         String body = new QueryBuilder().setModel(model).setDomain(SbxCore.environment.getDomain()).addObjectArray(data).compile();
         return sbxCoreRepository.upsert(clazz, body, token);
     }
@@ -83,8 +104,8 @@ public class SbxCore {
         return sbxCoreRepository.login(user, password, domainId);
     }
 
-    public <T> Mono<SbxResponse<T>> upsert(T object, String token) {
-        return upsert(Collections.singletonList(object), token);
+    public <T> Mono<SbxResponse<T>> upsert(Class<T> clazz, T object,String token) {
+        return upsert(clazz, Collections.singletonList(object),token);
     }
 
     public <T> Mono<SbxCloudScriptResponse<T>> run(String cloudScriptKey, Class<T> clazz, Map<String, Object> params, Boolean test, String token) {

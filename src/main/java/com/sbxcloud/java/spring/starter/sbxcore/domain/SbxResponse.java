@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,7 @@ public class SbxResponse<T> {
     @JsonProperty("total_pages")
     private Integer totalPages;
 
-    private List<T> results;
+    private List<T> results = Collections.emptyList();
 
     @JsonProperty("fetched_results")
     private HashMap<String, HashMap<String, Map<String, Object>>> fetchModels;

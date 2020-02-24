@@ -108,22 +108,10 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
                 .flatMap(res -> {
                     return res.bodyToMono(String.class);
                 })
-                .map(response -> {
-                    ObjectMapper mapper = new ObjectMapper();
-                    JavaType type = mapper.getTypeFactory().constructParametricType(SbxCloudScriptResponse.class, clazz);
-                  try {
-                    return mapper.<SbxCloudScriptResponse<T>>readValue(response, type);
-                  } catch (JsonProcessingException e) {
-                    e.printStackTrace();
-
-                    LOG.error("Error Connecting to SBX: ", e);
-                    SbxCloudScriptResponse<T> bad = new SbxCloudScriptResponse<>();
-                    bad.setSuccess(false);
-                    bad.setError(e.getMessage());
-                    return bad;
-                  }
-                });
+                .map(response -> SbxCore.parseBody(clazz, response));
     }
+
+
 
     @Override
     public Mono<LoginResponse> login(String user, String password, Integer domainId) {
@@ -204,7 +192,7 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
             Class fieldType = field.getType();
             String fieldName = field.getName();
 
-            if (field.isAnnotationPresent(SBXReference.class)) {
+            if (fetch!=null && field.isAnnotationPresent(SBXReference.class)) {
 
                 SBXReference a = field.getAnnotation(SBXReference.class);
                 Map<String, Map<String, Object>> map = fetch.get(a.model());
