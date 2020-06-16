@@ -65,11 +65,8 @@ public final class Find<T> {
                         merge(tSbxResponse.getFetchModels(), fetch);
                     }
 
-                    return Flux.fromIterable(IntStream.rangeClosed(2, tSbxResponse.getTotalPages())
-                            .boxed()
-                            .collect(Collectors.toList()))
-                            .delayElements(Duration.ofMillis(500))
-                            .flatMap(this::loadPage)
+                    return Flux.fromIterable(IntStream.range(2, tSbxResponse.getTotalPages()).boxed().collect(Collectors.toList()))
+                            .flatMap(this::loadPage, 2)
                             .map(res -> {
                                 items.addAll(res.getResults());
                                 if (res.getFetchModels() != null) {
@@ -106,9 +103,13 @@ public final class Find<T> {
 
 
     public Mono<SbxResponse<T>> loadPage(Integer page) {
-        System.out.println(("Loading page: "+page));
+        LOG.debug("Loading page: "+page);
         this.setPage(page);
-        return sbxCoreRepository.find(type, this.compile(), token);
+        return sbxCoreRepository.find(type, this.compile(), token)
+            .map( p -> {
+                LOG.debug("Loaded page:"+page);
+                return p;
+            });
     }
 
     public Find<T> newGroupWithAnd() {
