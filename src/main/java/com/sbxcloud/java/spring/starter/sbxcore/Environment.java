@@ -4,7 +4,7 @@ package com.sbxcloud.java.spring.starter.sbxcore;
 public class Environment {
 
     private Integer domain;
-    private String baseUrl = "https://sbxcloud.com/api";
+    private String baseUrl; //= "https://sbxcloud.com/api";
     private String appKey;
 
 
@@ -22,6 +22,7 @@ public class Environment {
     }
 
     public String getBaseUrl() {
+
         return baseUrl;
     }
 

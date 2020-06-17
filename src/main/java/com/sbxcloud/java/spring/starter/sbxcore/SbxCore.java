@@ -52,6 +52,11 @@ public class SbxCore {
     }
 
     public static String getUrl(String key) {
+
+        if(System.getenv().containsKey("SBX_HOST")){
+            return System.getenv("SBX_HOST")+"/api" +  SbxCore.urls.get(key);
+        }
+
         return SbxCore.environment.getBaseUrl() + SbxCore.urls.get(key);
     }
 
@@ -62,6 +67,8 @@ public class SbxCore {
 
         if(System.getenv().containsKey("SBX_HOST")){
             environment.setBaseUrl(System.getenv("SBX_HOST")+"/api");
+        }else{
+            environment.setBaseUrl("https://sbxcloud.com/api");
         }
 
         this.sbxCoreRepository = sbxCoreRepository;
