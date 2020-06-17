@@ -93,7 +93,7 @@ public class QueryBuilder {
   }
 
   public String compile() {
-    if (q.getWhere() != null && group.getConditions().size() > 0) {
+    if (q.getWhere().isEmpty() && !group.getConditions().isEmpty()) {
       q.addGroup(group);
     }
     HashMap<String,Object> query = q.getQuery();
