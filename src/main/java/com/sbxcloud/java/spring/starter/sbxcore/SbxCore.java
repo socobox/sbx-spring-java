@@ -59,6 +59,11 @@ public class SbxCore {
 
         environment.setDomain(domain);
         environment.setAppKey(appKey);
+
+        if(System.getenv().containsKey("SBX_HOST")){
+            environment.setBaseUrl(System.getenv("SBX_HOST")+"/api");
+        }
+
         this.sbxCoreRepository = sbxCoreRepository;
     }
 
