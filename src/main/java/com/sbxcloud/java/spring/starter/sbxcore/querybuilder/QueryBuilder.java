@@ -18,7 +18,6 @@ public class QueryBuilder {
   public QueryBuilder() {
     mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-    group = new Group();
     q = new Query();
     group = new Group();
     group.setAndOr(ANDOR.AND);
@@ -82,7 +81,7 @@ public class QueryBuilder {
   }
 
   public QueryBuilder addCondition(ANDOR connector, String fieldName, OP operator, Object value) {
-    if (!fieldName.matches("^[a-zA-Z0-9\\._-]+$")) {
+    if (!fieldName.matches("^[a-zA-Z0-9._-]+$")) {
       return this;
     }
     if (group.getConditions().size() < 1) {
@@ -93,8 +92,10 @@ public class QueryBuilder {
   }
 
   public String compile() {
-    if (q.getWhere().isEmpty() && !group.getConditions().isEmpty()) {
+
+    if (q.getWhere() != null && group.getConditions().size() > 0) {
       q.addGroup(group);
+      group = new Group();
     }
     HashMap<String,Object> query = q.getQuery();
     try {
