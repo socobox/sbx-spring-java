@@ -23,9 +23,9 @@ import java.util.Map;
 public class SbxCore {
 
     public static Environment environment = new Environment();
-    private static HashMap<String, String> urls = new HashMap<>();
+    private static final HashMap<String, String> urls = new HashMap<>();
 
-    private static Logger LOG = LoggerFactory.getLogger(SbxCore.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SbxCore.class);
 
 
     private final SbxCoreRepository sbxCoreRepository;
@@ -95,7 +95,8 @@ public class SbxCore {
     @SuppressWarnings("unchecked")
     public <T> Mono<SbxResponse<T>> upsert(Class<T> clazz , List<T> data,String token) {
         String model = clazz.getAnnotation(SBXModel.class).value();
-        String body = new QueryBuilder().setModel(model).setDomain(SbxCore.environment.getDomain()).addObjectArray(data).compile();
+        String body = QueryBuilder.upsert().setModel(model).setDomain(SbxCore.environment.getDomain()).addObjects(data).compile();
+        System.out.println(body);
         return sbxCoreRepository.upsert(clazz, body, token);
     }
 

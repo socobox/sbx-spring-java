@@ -1,33 +1,25 @@
 package com.sbxcloud.java.spring.starter.sbxcore.querybuilder;
 
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class Group {
 
-  private ANDOR andOr;
-  private List<Condition> conditions = new ArrayList<>();
+  @JsonProperty("ANDOR")
+  private final AndOr andOr;
 
-  public void addCondition(Condition condition) {
-    this.conditions.add(condition);
-  }
+  @JsonProperty("GROUP")
+  private List<Condition> conditions =  new LinkedList<>();
 
-  public HashMap<String, Object> getGroup () {
-    HashMap<String, Object> hash = new HashMap<String, Object>();
-    hash.put("ANDOR", andOr);
-    hash.put("GROUP", conditions.stream().map(Condition::getCondition).collect(Collectors.toList()));
-    return hash;
-  }
-
-  public ANDOR getAndOr() {
-    return andOr;
-  }
-
-  public void setAndOr(ANDOR andOr) {
+  public Group(AndOr andOr) {
     this.andOr = andOr;
+  }
+
+  public AndOr getAndOr() {
+    return andOr;
   }
 
   public List<Condition> getConditions() {
@@ -36,5 +28,10 @@ public class Group {
 
   public void setConditions(List<Condition> conditions) {
     this.conditions = conditions;
+  }
+
+
+  public void addCondition(Condition condition) {
+    conditions.add(condition);
   }
 }

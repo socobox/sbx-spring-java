@@ -3,8 +3,8 @@ package com.sbxcloud.java.spring.starter.sbxcore;
 
 import com.sbxcloud.java.spring.starter.sbxcore.dao.SbxCoreRepository;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
-import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.ANDOR;
-import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.OP;
+import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.AndOr;
+import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.Operator;
 import com.sbxcloud.java.spring.starter.sbxcore.querybuilder.QueryBuilder;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXModel;
 import org.slf4j.Logger;
@@ -13,10 +13,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -39,7 +38,7 @@ public final class Find<T> {
         this.token = token;
         String model = type.getAnnotation(SBXModel.class).value();
         Integer domain = SbxCore.environment.getDomain();
-        this.query = new QueryBuilder().setDomain(domain).setModel(model);
+        this.query = QueryBuilder.find().setDomain(domain).setModel(model);
     }
 
     public String compile() {
@@ -59,7 +58,7 @@ public final class Find<T> {
 
                     LinkedList<T> items = new LinkedList<T>(tSbxResponse.getResults());
 
-                    HashMap<String, HashMap<String, Map<String, Object>>> fetch = new HashMap<>(new HashMap<>());
+                    var fetch = new HashMap<String, HashMap<String, Map<String, Object>>>(new HashMap<>());
 
                     if (tSbxResponse.getFetchModels() != null) {
                         merge(tSbxResponse.getFetchModels(), fetch);
@@ -68,8 +67,8 @@ public final class Find<T> {
                     return Flux.fromIterable(IntStream.rangeClosed(2, tSbxResponse.getTotalPages())
                             .boxed()
                             .collect(Collectors.toList()))
-                            .delayElements(Duration.ofMillis(500))
-                            .flatMap(this::loadPage)
+                            .delayElements(Duration.ofMillis(50))
+                            .flatMap(this::loadPage, 2)
                             .map(res -> {
                                 items.addAll(res.getResults());
                                 if (res.getFetchModels() != null) {
@@ -99,157 +98,156 @@ public final class Find<T> {
 
             HashMap<String, Map<String, Object>> rowMap = target.get(modelName);
 
-            rows.forEach(rowMap::put);
-
+            rowMap.putAll(rows);
         });
     }
 
 
     public Mono<SbxResponse<T>> loadPage(Integer page) {
-        System.out.println(("Loading page: "+page));
         this.setPage(page);
+        System.out.println("loading page "+page+" "+ LocalDateTime.now());
         return sbxCoreRepository.find(type, this.compile(), token);
     }
 
     public Find<T> newGroupWithAnd() {
-        this.query.newGroup(ANDOR.AND);
+        this.query.newAndGroup();
         return this;
     }
 
     public Find<T> newGroupWithOr() {
-        this.query.newGroup(ANDOR.OR);
+        this.query.newOrGroup();
         return this;
     }
 
     public Find<T> andWhereIsEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.EQ, value);
+        this.query.addCondition(AndOr.AND, field, Operator.EQ, value);
         return this;
     }
 
     public Find<T> andWhereIsNotNull(String field) {
-        this.query.addCondition(ANDOR.AND, field, OP.ISNOT, null);
+        this.query.addCondition(AndOr.AND, field, Operator.NOT_NULL, null);
         return this;
     }
 
     public Find<T> andWhereIsNull(String field) {
-        this.query.addCondition(ANDOR.AND, field, OP.IS, null);
+        this.query.addCondition(AndOr.AND, field, Operator.IS_NULL, null);
         return this;
     }
 
     public Find<T> andWhereIsGreaterThan(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.GT, value);
+        this.query.addCondition(AndOr.AND, field, Operator.GT, value);
         return this;
     }
 
     public Find<T> andWhereIsLessThan(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.LT, value);
+        this.query.addCondition(AndOr.AND, field, Operator.LT, value);
         return this;
     }
 
     public Find<T> andWhereIsGreaterOrEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.GET, value);
+        this.query.addCondition(AndOr.AND, field, Operator.GT_OR_EQ, value);
         return this;
     }
 
     public Find<T> andWhereIsLessOrEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.LET, value);
+        this.query.addCondition(AndOr.AND, field, Operator.LT_OR_EQ, value);
         return this;
     }
 
     public Find<T> andWhereIsNotEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.NOTEQ, value);
+        this.query.addCondition(AndOr.AND, field, Operator.NOT_EQ, value);
         return this;
     }
 
     public Find<T> andWhereItStartsWith(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.LIKE, "%" + value.toString());
+        this.query.addCondition(AndOr.AND, field, Operator.LIKE, "%" + value.toString());
         return this;
     }
 
     public Find<T> andWhereItEndsWith(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.LIKE, value.toString() + "%");
+        this.query.addCondition(AndOr.AND, field, Operator.LIKE, value.toString() + "%");
         return this;
     }
 
     public Find<T> andWhereItContains(String field, Object value) {
         String v = "%" + String.join("%", value.toString().trim().split(" ")) + "%";
-        this.query.addCondition(ANDOR.AND, field, OP.LIKE, v);
+        this.query.addCondition(AndOr.AND, field, Operator.LIKE, v);
         return this;
     }
 
     public Find<T> andWhereIsIn(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.IN, value);
+        this.query.addCondition(AndOr.AND, field, Operator.IN, value);
         return this;
     }
 
     public Find<T> andWhereIsNotIn(String field, Object value) {
-        this.query.addCondition(ANDOR.AND, field, OP.NOTIN, value);
+        this.query.addCondition(AndOr.AND, field, Operator.NOT_IN, value);
         return this;
     }
 
     public Find<T> orWhereIsEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.EQ, value);
+        this.query.addCondition(AndOr.OR, field, Operator.EQ, value);
         return this;
     }
 
     public Find<T> orWhereIsNotNull(String field) {
-        this.query.addCondition(ANDOR.OR, field, OP.ISNOT, null);
+        this.query.addCondition(AndOr.OR, field, Operator.NOT_NULL, null);
         return this;
     }
 
     public Find<T> orWhereIsNull(String field) {
-        this.query.addCondition(ANDOR.OR, field, OP.IS, null);
+        this.query.addCondition(AndOr.OR, field, Operator.IS_NULL, null);
         return this;
     }
 
     public Find<T> orWhereIsGreaterThan(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.GT, value);
+        this.query.addCondition(AndOr.OR, field, Operator.GT, value);
         return this;
     }
 
     public Find<T> orWhereIsLessThan(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.LT, value);
+        this.query.addCondition(AndOr.OR, field, Operator.LT, value);
         return this;
     }
 
     public Find<T> orWhereIsGreaterOrEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.GET, value);
+        this.query.addCondition(AndOr.OR, field, Operator.GT_OR_EQ, value);
         return this;
     }
 
     public Find<T> orWhereIsLessOrEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.LET, value);
+        this.query.addCondition(AndOr.OR, field, Operator.LT_OR_EQ, value);
         return this;
     }
 
     public Find<T> orWhereIsNotEqualTo(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.NOTEQ, value);
+        this.query.addCondition(AndOr.OR, field, Operator.NOT_EQ, value);
         return this;
     }
 
-    public Find<T> orWhereItStartsWith(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.LIKE, "%" + value.toString());
+    public Find<T> orWhereItStartsWith(String field, String value) {
+        this.query.addCondition(AndOr.OR, field, Operator.LIKE, "%" + value);
         return this;
     }
 
-    public Find<T> orWhereItEndsWith(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.LIKE, value.toString() + "%");
+    public Find<T> orWhereItEndsWith(String field, String value) {
+        this.query.addCondition(AndOr.OR, field, Operator.LIKE, value + "%");
         return this;
     }
 
-    public Find<T> orWhereItContains(String field, Object value) {
-        String v = "%" + String.join("%", value.toString().trim().split(" ")) + "%";
-        this.query.addCondition(ANDOR.OR, field, OP.LIKE, v);
+    public Find<T> orWhereItContains(String field, String value) {
+        String v = "%" + String.join("%", value.trim().split(" ")) + "%";
+        this.query.addCondition(AndOr.OR, field, Operator.LIKE, v);
         return this;
     }
 
-    public Find<T> orWhereIsIn(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.IN, value);
+    public Find<T> orWhereIsIn(String field, Collection<Object> value) {
+        this.query.addCondition(AndOr.OR, field, Operator.IN, value);
         return this;
     }
 
-    public Find<T> orWhereIsNotIn(String field, Object value) {
-        this.query.addCondition(ANDOR.OR, field, OP.NOTIN, value);
+    public Find<T> orWhereIsNotIn(String field, Collection<Object> value) {
+        this.query.addCondition(AndOr.OR, field, Operator.NOT_IN, value);
         return this;
     }
 
@@ -263,7 +261,7 @@ public final class Find<T> {
         return this;
     }
 
-    public Find<T> fetchModels(List<String> models) {
+    public Find<T> fetchModels(String... models) {
         this.query.fetchModels(models);
         return this;
     }

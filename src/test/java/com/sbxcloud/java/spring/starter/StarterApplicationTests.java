@@ -8,7 +8,10 @@ import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxCloudScriptResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXModel;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXReference;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.util.Assert;
@@ -20,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
 class StarterApplicationTests {
 
@@ -27,6 +31,7 @@ class StarterApplicationTests {
     @Autowired
     private SbxCore svc;
 
+    @Order(1)
     @Test
     void contextLoads() {
 
@@ -38,18 +43,19 @@ class StarterApplicationTests {
                     }
 
                     return svc.find(Audit.class, loginResponse.getToken())
-                            .andWhereIsEqualTo("action", "DELETED")
-                            .fetchModels(Collections.singletonList("user")).loadAllPages();
+                            .andWhereIsEqualTo("action", "DELETE")
+                            .fetchModels("user").loadAllPages();
                 });
 
 
         StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-            return productSbxResponse.getResults().size() >= 3496;
+            return productSbxResponse.getResults().size() == 7268;
         }).verifyComplete();
 
     }
 
 
+    @Order(2)
     @Test
     void update() {
 
@@ -63,7 +69,7 @@ class StarterApplicationTests {
 
                     return svc.find(Audit.class, loginResponse.getToken())
                             .andWhereIsEqualTo("action", "TEST")
-                            .fetchModels(Collections.singletonList("user")).loadAllPages()
+                            .fetchModels("user").loadAllPages()
                     .map(response -> response.getResults().stream().findFirst())
                             .flatMap(it->{
                                 Audit t = it.orElseThrow(IndexOutOfBoundsException::new);
@@ -76,33 +82,31 @@ class StarterApplicationTests {
                 });
 
 
-        StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-            return productSbxResponse.getSuccess();
-        }).verifyComplete();
+        StepVerifier.create(res).expectNextMatches(SbxResponse::getSuccess).verifyComplete();
 
     }
 
-
-    @Test
-    void csRun() {
-
-        Mono<SbxCloudScriptResponse<AuditData>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
-                .flatMap(loginResponse -> {
-
-                    if (!loginResponse.getSuccess()) {
-                        return Mono.error(new LoginException("Invalid Credentials"));
-                    }
-
-                    return svc.run("09F4BED8-7976-43E7-8896-DD249B908991", AuditData.class, Collections.emptyMap(), false,loginResponse.getToken());
-                });
-
-
-        StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-            System.out.println(productSbxResponse.getResponse().getBody());
-            return productSbxResponse.getSuccess();
-        }).verifyComplete();
-
-    }
+//
+//    @Test
+//    void csRun() {
+//
+//        Mono<SbxCloudScriptResponse<AuditData>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
+//                .flatMap(loginResponse -> {
+//
+//                    if (!loginResponse.getSuccess()) {
+//                        return Mono.error(new LoginException("Invalid Credentials"));
+//                    }
+//
+//                    return svc.run("09F4BED8-7976-43E7-8896-DD249B908991", AuditData.class, Collections.emptyMap(), false,loginResponse.getToken());
+//                });
+//
+//
+//        StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
+//            System.out.println(productSbxResponse.getResponse().getBody());
+//            return productSbxResponse.getSuccess();
+//        }).verifyComplete();
+//
+//    }
 
 
     @SBXModel("user")

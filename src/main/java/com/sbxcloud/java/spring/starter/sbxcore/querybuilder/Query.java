@@ -2,9 +2,7 @@ package com.sbxcloud.java.spring.starter.sbxcore.querybuilder;
 
 
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -15,7 +13,7 @@ public class Query {
   private Integer page = 1;
   private Integer size = 1000;
   private List<Group> where = new ArrayList<>();
-  private List<String> fetch = new ArrayList<>();
+  private Set<String> fetch = new HashSet<>();
   private List<Object> rows = new ArrayList<>();
   private ReferenceJoin referenceJoin;
   private HashMap<String, List<String>> whereKeys;
@@ -27,12 +25,13 @@ public class Query {
     hash.put("page", page);
     hash.put("size", size);
     if (where != null) {
-      hash.put("where", where.stream().map(Group::getGroup).collect(Collectors.toList()));
+      hash.put("where", where);
     }
     if (whereKeys != null) {
       hash.put("where", whereKeys);
     }
-    if (rows != null && !hash.containsKey("where")) {
+    if (rows != null && !rows.isEmpty()) {
+      hash.remove("where");
       hash.put("rows", rows);
     }
     if (fetch.size() > 0) {
@@ -117,12 +116,12 @@ public class Query {
     this.where = where;
   }
 
-  public List<String> getFetch() {
+  public Set<String> getFetch() {
     return fetch;
   }
 
-  public void setFetch(List<String> fetch) {
-    this.fetch = fetch;
+  public void addFetch(String... fetch) {
+    this.fetch.addAll(List.of(fetch)) ;
   }
 
   public List<Object> getRows() {

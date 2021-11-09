@@ -129,11 +129,9 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
                         .queryParam("login", user)
                         .queryParam("password", password).toUriString())
                 .headers(httpHeaders -> httpHeaders.setAll(getHeaders(null).toSingleValueMap()))
-                .accept(MediaType.APPLICATION_XML)
-                .exchange()
-                .flatMap(res -> {
-                    return res.bodyToMono(LoginResponse.class);
-                });
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .bodyToMono(LoginResponse.class);
 
     }
 
@@ -149,20 +147,20 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
     private <T> Mono<SbxResponse<T>> getSbxResponse(String url, String body, Class<?> clazz, String token) throws IOException {
 
         ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 5000)).build();
+
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024)).build();
 
         WebClient webClient = WebClient.builder().exchangeStrategies(exchangeStrategies).build();
 
 
         return webClient.post()
                 .uri(url)
+
                 .headers(httpHeaders -> httpHeaders.setAll(getHeaders(token).toSingleValueMap()))
-                .accept(MediaType.APPLICATION_XML)
+                .accept(MediaType.APPLICATION_JSON)
                 .body(BodyInserters.fromValue(body))
-                .exchange()
-                .flatMap(res -> {
-                    return res.bodyToMono(String.class);
-                })
+                .retrieve()
+                .bodyToMono(String.class)
                 .map(response -> {
                     try {
                         return handleSbxResponse(response, clazz);

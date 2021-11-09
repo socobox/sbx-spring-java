@@ -86,4 +86,17 @@ public class SbxResponse<T> {
     public void setError(String error) {
         this.error = error;
     }
+
+    @Override
+    public String toString() {
+        return "SbxResponse{" +
+          "success=" + success +
+          ", rowCount=" + rowCount +
+          ", totalPages=" + totalPages +
+          ", results=" + results +
+          ", fetchModels=" + fetchModels +
+          ", keys=" + keys +
+          ", error='" + error + '\'' +
+          '}';
+    }
 }

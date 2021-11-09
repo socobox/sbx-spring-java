@@ -1,54 +1,26 @@
 package com.sbxcloud.java.spring.starter.sbxcore.querybuilder;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.HashMap;
 
 
-public class Condition {
+public record Condition(@JsonProperty("ANDOR") AndOr andOr,
+                        @JsonProperty("FIELD") String field,
+                        @JsonProperty("OP") Operator operator,
+                        @JsonProperty("VAL") Object value) {
 
-  private ANDOR andOr;
-  private Object val;
-  private String field;
-  private OP op;
 
+  @JsonIgnore
   public HashMap<String, Object> getCondition() {
     HashMap<String, Object> hash = new HashMap<>();
     hash.put("ANDOR", andOr);
-    hash.put("VAL", val);
+    hash.put("VAL", value);
     hash.put("FIELD", field);
-    hash.put("OP", op.getValue());
+    hash.put("OP", operator.toString());
     return hash;
   }
 
-  public ANDOR getAndOr() {
-    return andOr;
-  }
-
-  public void setAndOr(ANDOR andOr) {
-    this.andOr = andOr;
-  }
-
-  public Object getVal() {
-    return val;
-  }
-
-  public void setVal(Object val) {
-    this.val = val;
-  }
-
-  public String getField() {
-    return field;
-  }
-
-  public void setField(String field) {
-    this.field = field;
-  }
-
-  public OP getOp() {
-    return op;
-  }
-
-  public void setOp(OP op) {
-    this.op = op;
-  }
 }

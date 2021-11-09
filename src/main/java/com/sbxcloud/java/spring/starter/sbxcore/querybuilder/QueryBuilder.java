@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -15,13 +16,21 @@ public class QueryBuilder {
   private Group group;
   private ObjectMapper mapper = new ObjectMapper();
 
-  public QueryBuilder() {
+  private QueryBuilder() {
     mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-    group = new Group();
     q = new Query();
-    group = new Group();
-    group.setAndOr(ANDOR.AND);
+  }
+
+  public static QueryBuilder find(){
+    var query =  new QueryBuilder();
+    query.group = new Group(AndOr.AND);
+    query.q.addGroup(query.group);
+    return query;
+  }
+
+  public static QueryBuilder upsert(){
+    return  new QueryBuilder();
   }
 
   public QueryBuilder setDomain(Integer domain) {
@@ -44,17 +53,17 @@ public class QueryBuilder {
     return this;
   }
 
-  public QueryBuilder fetchModels(List<String> models) {
-    q.setFetch(models);
+  public QueryBuilder fetchModels(String... models) {
+    q.addFetch(models);
     return this;
   }
 
-  public QueryBuilder addObject(Object o) {
+  public <T> QueryBuilder addObject(T o) {
     q.addObject(o);
     return this;
   }
 
-  public <T> QueryBuilder addObjectArray(List<T> objects) {
+  public <T> QueryBuilder addObjects(List<T> objects) {
     objects.forEach(q::addObject);
     return this;
   }
@@ -66,36 +75,38 @@ public class QueryBuilder {
     return this;
   }
 
-  public QueryBuilder newGroup(ANDOR connector) {
-    q.addGroup(group);
-    group = new Group();
-    group.setAndOr(connector);
+  public QueryBuilder newOrGroup() {
+    this.group = new Group(AndOr.OR);
+    q.addGroup(this.group);
     return this;
   }
 
-  public QueryBuilder setReferenceJoin(OP operator, String filterField, String referenceField, String model, Object value) {
+  public QueryBuilder newAndGroup() {
+    this.group = new Group(AndOr.AND);
+    q.addGroup(this.group);
+    return this;
+  }
+
+  public QueryBuilder setReferenceJoin(Operator operator, String filterField, String referenceField, String model, Object value) {
     ReferenceJoin rj = new ReferenceJoin();
     rj.setRowModel(model);
     rj.setReferenceField(referenceField);
-    rj.setFilter(makeCondition(ANDOR.AND, filterField, operator, value));
+    rj.setFilter(new Condition(AndOr.AND, filterField, operator, value));
     return this;
   }
 
-  public QueryBuilder addCondition(ANDOR connector, String fieldName, OP operator, Object value) {
+  public QueryBuilder addCondition(AndOr connector, String fieldName, Operator operator, Object value) {
     if (!fieldName.matches("^[a-zA-Z0-9\\._-]+$")) {
       return this;
     }
     if (group.getConditions().size() < 1) {
-      connector = ANDOR.AND;
+      connector = AndOr.AND;
     }
-    group.addCondition(makeCondition(connector, fieldName, operator, value));
+    group.addCondition(new Condition(connector, fieldName, operator, value));
     return this;
   }
 
   public String compile() {
-    if (q.getWhere() != null && group.getConditions().size() > 0) {
-      q.addGroup(group);
-    }
     HashMap<String,Object> query = q.getQuery();
     try {
       return mapper.writeValueAsString(query);
@@ -105,13 +116,6 @@ public class QueryBuilder {
     return "";
   }
 
-  private Condition makeCondition(ANDOR connector, String fieldName, OP operator, Object value) {
-    Condition condition = new Condition();
-    condition.setAndOr(connector);
-    condition.setField(fieldName);
-    condition.setOp(operator);
-    condition.setVal(value);
-    return condition;
-  }
+
 
 }
