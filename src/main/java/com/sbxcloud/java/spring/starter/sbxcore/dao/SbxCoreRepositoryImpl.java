@@ -41,6 +41,8 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
 
     private String sbxUpdate = SbxCore.getUrl("update");
 
+    private String sbxDelete = SbxCore.getUrl("delete");
+
     private String sbxLogin = SbxCore.getUrl("login");
 
     private String sbxInsert = SbxCore.getUrl("row");
@@ -56,6 +58,17 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
             return getSbxResponse(sbxFind, body, model, token);
         } catch (Exception ex) {
             LOG.error("Find " + model.getName() + " ", ex);
+            return handleError(ex);
+        }
+    }
+
+    @Override
+    public <T> Mono<SbxResponse<T>> delete(Class<T> model, String body, String token) {
+        try {
+            String url = sbxDelete;
+            return getSbxResponse(url, body, model, token);
+        } catch (Exception ex) {
+            LOG.debug("Upsert " + model.getName() + " " + ex.getMessage());
             return handleError(ex);
         }
     }

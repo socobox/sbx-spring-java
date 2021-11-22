@@ -14,6 +14,8 @@ public interface SbxCoreRepository {
 
     <T> Mono<SbxResponse<T>> upsert(Class<T> model, String body, String token);
 
+    <T> Mono<SbxResponse<T>> delete(Class<T> model, String body, String token);
+
     <T> Mono<SbxCloudScriptResponse<T>> run(String key, Class<?> clazz, Map<String, Object> params, Boolean test,String token);
 
     Mono<LoginResponse> login(String user, String password, Integer domainId);

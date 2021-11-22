@@ -3,23 +3,20 @@ package com.sbxcloud.java.spring.starter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.sbxcloud.java.spring.starter.sbxcore.SbxCore;
-import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxCloudScriptResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
+import com.sbxcloud.java.spring.starter.sbxcore.login.LoginResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXModel;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXReference;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import javax.security.auth.login.LoginException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,264 +25,239 @@ import java.util.List;
 class StarterApplicationTests {
 
 
-    @Autowired
-    private SbxCore svc;
+  @Autowired
+  private SbxCore svc;
 
-    @Order(1)
-    @Test
-    void contextLoads() {
+  private String token;
 
-        Mono<SbxResponse<Audit>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
-                .flatMap(loginResponse -> {
+  @BeforeEach
+  void login() {
 
-                    if (!loginResponse.getSuccess()) {
-                        return Mono.error(new LoginException("Invalid Credentials"));
-                    }
+    Mono<LoginResponse> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain());
 
-                    return svc.find(Audit.class, loginResponse.getToken())
-                            .andWhereIsEqualTo("action", "DELETE")
-                            .fetchModels("user").loadAllPages();
-                });
+    StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
+
+      if(productSbxResponse != null && productSbxResponse.getSuccess()){
+        token = productSbxResponse.getToken();
+      }
+
+      return StringUtils.hasText(token);
+    }).verifyComplete();
+
+  }
+
+  @Order(2)
+  @Test
+  void create() {
 
 
-        StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-            return productSbxResponse.getResults().size() == 7268;
-        }).verifyComplete();
+    var city = new City();
+    city.setCountry("20b3a7e1-b20f-491e-8240-1647c72a4f5b");
+    city.setFedexAccount("8291457");
+    city.setFedexName("BAQ");
+    city.setName("BAQ");
+    city.setDaysInAdvance("0");
+    city.setFedexZipcode("33115");
 
+    Mono<SbxResponse<City>> res = svc.upsert(City.class, Collections.singletonList(city),token);
+
+    StepVerifier.create(res).expectNextMatches(SbxResponse::getSuccess).verifyComplete();
+
+  }
+
+
+  @Order(3)
+  @Test
+  void update() {
+
+
+    Mono<SbxResponse<City>> res = svc.find(City.class, token)
+          .andWhereIsEqualTo("name", "BAQ")
+          .fetchModels("country").loadAllPages()
+          .map(response -> response.getResults().stream().findFirst())
+          .flatMap(it -> {
+            City t = it.orElseThrow(IndexOutOfBoundsException::new);
+            System.out.println(t.getKey());
+            t.setName("Barranquilla");
+            return svc.upsert(City.class, t, token);
+          });
+
+    StepVerifier.create(res).expectNextMatches(SbxResponse::getSuccess).verifyComplete();
+
+  }
+
+
+  @Order(4)
+  @Test
+  void delete() {
+
+
+    Mono<SbxResponse<City>> res = svc.find(City.class, token)
+      .andWhereIsEqualTo("name", "Barranquilla")
+      .fetchModels("country").loadAllPages()
+      .map(response -> response.getResults().stream().findFirst())
+      .flatMap(it -> {
+        City t = it.orElseThrow(IndexOutOfBoundsException::new);
+        System.out.println(t.getKey());
+
+        return svc.delete(City.class, Collections.singletonList(t.getKey()) , token);
+      });
+
+    StepVerifier.create(res).expectNextMatches(SbxResponse::getSuccess).verifyComplete();
+
+  }
+
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @SBXModel("country")
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private static class Country {
+
+    @JsonProperty("_KEY")
+    private String key;
+
+    private String countryIso;
+
+    private String shipper;
+
+    public String getKey() {
+      return key;
     }
 
-
-    @Order(2)
-    @Test
-    void update() {
-
-
-        Mono<SbxResponse<Audit>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
-                .flatMap(loginResponse -> {
-
-                    if (!loginResponse.getSuccess()) {
-                        return Mono.error(new LoginException("Invalid Credentials"));
-                    }
-
-                    return svc.find(Audit.class, loginResponse.getToken())
-                            .andWhereIsEqualTo("action", "TEST")
-                            .fetchModels("user").loadAllPages()
-                    .map(response -> response.getResults().stream().findFirst())
-                            .flatMap(it->{
-                                Audit t = it.orElseThrow(IndexOutOfBoundsException::new);
-                                System.out.println(t._KEY);
-                                t.action = "DELETE";
-                                return svc.upsert(Audit.class, t, loginResponse.getToken());
-                            });
-
-
-                });
-
-
-        StepVerifier.create(res).expectNextMatches(SbxResponse::getSuccess).verifyComplete();
-
+    public void setKey(String key) {
+      this.key = key;
     }
 
-//
-//    @Test
-//    void csRun() {
-//
-//        Mono<SbxCloudScriptResponse<AuditData>> res = svc.login(System.getenv("TEST_LOGIN"), System.getenv("TEST_PASSWORD"), svc.currentDomain())
-//                .flatMap(loginResponse -> {
-//
-//                    if (!loginResponse.getSuccess()) {
-//                        return Mono.error(new LoginException("Invalid Credentials"));
-//                    }
-//
-//                    return svc.run("09F4BED8-7976-43E7-8896-DD249B908991", AuditData.class, Collections.emptyMap(), false,loginResponse.getToken());
-//                });
-//
-//
-//        StepVerifier.create(res).expectNextMatches(productSbxResponse -> {
-//            System.out.println(productSbxResponse.getResponse().getBody());
-//            return productSbxResponse.getSuccess();
-//        }).verifyComplete();
-//
-//    }
-
-
-    @SBXModel("user")
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private static class User {
-
-        private String role;
-
-
-        public String getRole() {
-            return role;
-        }
-
-        public void setRole(String role) {
-            this.role = role;
-        }
-
-        @Override
-        public String toString() {
-            return "User{" +
-                    "role='" + role + '\'' +
-                    '}';
-        }
+    public String getCountryIso() {
+      return countryIso;
     }
 
-
-
-    @SBXModel("audit")
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private static class Audit {
-
-
-        private String _KEY;
-
-        private String action;
-
-
-        private String user;
-
-
-        @JsonIgnore
-        @SBXReference(model = "user", keyField = "user")
-        private User userRef;
-
-        public String getUser() {
-            return user;
-        }
-
-        public void setUser(String user) {
-            this.user = user;
-        }
-
-        public User getUserRef() {
-            return userRef;
-        }
-
-        public void setUserRef(User userRef) {
-            this.userRef = userRef;
-        }
-
-        public String getAction() {
-            return action;
-        }
-
-        public void setAction(String action) {
-            this.action = action;
-        }
-
-
-        @Override
-        public String toString() {
-            return "Audit{" +
-                    "action='" + action + '\'' +
-                    ", user='" + user + '\'' +
-                    ", userRef=" + userRef +
-                    '}';
-        }
-
-        public String get_KEY() {
-            return _KEY;
-        }
-
-        public void set_KEY(String _KEY) {
-            this._KEY = _KEY;
-        }
+    public void setCountryIso(String countryIso) {
+      this.countryIso = countryIso;
     }
 
-    private static class AuditData{
-
-        private List<Audit> items;
-
-        public List<Audit> getItems() {
-            return items;
-        }
-
-        public void setItems(List<Audit> items) {
-            this.items = items;
-        }
-
-        @Override
-        public String toString() {
-            return "AuditData{" +
-                    "items=" + items +
-                    '}';
-        }
+    public String getShipper() {
+      return shipper;
     }
 
-
-    @SBXModel("add_masterlist")
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Product {
-
-        public Product() {
-        }
-
-        @JsonProperty("_KEY")
-        private String key;
-
-        private String variety;
-
-
-        @JsonProperty("product_group")
-        private String productGroup;
-
-        private String searchText;
-
-        private Integer length;
-
-        public String getKey() {
-            return key;
-        }
-
-        public void setKey(String key) {
-            this.key = key;
-        }
-
-        public String getVariety() {
-            return variety;
-        }
-
-        public void setVariety(String variety) {
-            this.variety = variety;
-        }
-
-        public String getProductGroup() {
-            return productGroup;
-        }
-
-        public void setProductGroup(String productGroup) {
-            this.productGroup = productGroup;
-        }
-
-        public String getSearchText() {
-            return searchText;
-        }
-
-        public void setSearchText(String searchText) {
-            this.searchText = searchText;
-        }
-
-        public Integer getLength() {
-            return length;
-        }
-
-        public void setLength(Integer length) {
-            this.length = length;
-        }
-
-        @Override
-        public String toString() {
-            return "Product{" +
-                    "key='" + key + '\'' +
-                    ", variety='" + variety + '\'' +
-                    ", productGroup='" + productGroup + '\'' +
-                    ", searchText='" + searchText + '\'' +
-                    ", length=" + length +
-                    '}';
-        }
+    public void setShipper(String shipper) {
+      this.shipper = shipper;
     }
+
+    @Override
+    public String toString() {
+      return "Country{" +
+        "_KEY='" + key + '\'' +
+        ", countryIso='" + countryIso + '\'' +
+        ", shipper='" + shipper + '\'' +
+        '}';
+    }
+
+  }
+
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @SBXModel("city")
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private static class City {
+
+    @JsonProperty("_KEY")
+    private String key;
+
+    private String name;
+
+    private String daysInAdvance;
+
+    private String country;
+
+    private String fedexAccount;
+
+    private String fedexName;
+
+    private String fedexZipcode;
+
+
+    @JsonIgnore
+    @SBXReference(model = "country", keyField = "country")
+    private Country countryRef;
+
+
+    @Override
+    public String toString() {
+      return "City{" +
+        "_KEY='" + key + '\'' +
+        ", name='" + name + '\'' +
+        ", daysInAdvance='" + daysInAdvance + '\'' +
+        ", country='" + country + '\'' +
+        ", fedexAccount='" + fedexAccount + '\'' +
+        ", fedexName='" + fedexName + '\'' +
+        ", fedexZipcode='" + fedexZipcode + '\'' +
+        ", countryRef=" + countryRef +
+        '}';
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getDaysInAdvance() {
+      return daysInAdvance;
+    }
+
+    public void setDaysInAdvance(String daysInAdvance) {
+      this.daysInAdvance = daysInAdvance;
+    }
+
+    public String getCountry() {
+      return country;
+    }
+
+    public void setCountry(String country) {
+      this.country = country;
+    }
+
+    public String getFedexAccount() {
+      return fedexAccount;
+    }
+
+    public void setFedexAccount(String fedexAccount) {
+      this.fedexAccount = fedexAccount;
+    }
+
+    public String getFedexName() {
+      return fedexName;
+    }
+
+    public void setFedexName(String fedexName) {
+      this.fedexName = fedexName;
+    }
+
+    public String getFedexZipcode() {
+      return fedexZipcode;
+    }
+
+    public void setFedexZipcode(String fedexZipcode) {
+      this.fedexZipcode = fedexZipcode;
+    }
+
+    public Country getCountryRef() {
+      return countryRef;
+    }
+
+    public void setCountryRef(Country countryRef) {
+      this.countryRef = countryRef;
+    }
+
+    public String getKey() {
+      return key;
+    }
+
+    public void setKey(String key) {
+      this.key = key;
+    }
+  }
 
 
 }

@@ -109,6 +109,12 @@ public class SbxCore {
         return upsert(clazz, Collections.singletonList(object),token);
     }
 
+    public <T> Mono<SbxResponse<T>> delete(Class<T> clazz, List<String> keys,String token) {
+        String model = clazz.getAnnotation(SBXModel.class).value();
+        String body = QueryBuilder.upsert().setModel(model).setDomain(SbxCore.environment.getDomain()).whereWithKeys(keys).compile();
+        return sbxCoreRepository.delete(clazz, body, token);
+    }
+
     public <T> Mono<SbxCloudScriptResponse<T>> run(String cloudScriptKey, Class<T> clazz, Map<String, Object> params, Boolean test, String token) {
         return sbxCoreRepository.run(cloudScriptKey, clazz, params, test, token);
     }
