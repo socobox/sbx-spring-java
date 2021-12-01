@@ -24,7 +24,7 @@ public class Query {
     hash.put("row_model", model);
     hash.put("page", page);
     hash.put("size", size);
-    if (where != null) {
+    if (where != null && where.size() > 0 && !where.get(0).getConditions().isEmpty()) {
       hash.put("where", where);
     }
     if (whereKeys != null) {

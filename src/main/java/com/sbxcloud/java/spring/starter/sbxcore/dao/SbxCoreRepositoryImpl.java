@@ -26,6 +26,7 @@ import reactor.netty.http.client.HttpClient;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
+import java.time.Duration;
 import java.util.*;
 
 
@@ -37,18 +38,19 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
     private static Logger LOG = LoggerFactory.getLogger(SbxCoreRepository.class);
 
 
-    private String sbxFind = SbxCore.getUrl("find");
+    private final String sbxFind = SbxCore.getUrl("find");
 
-    private String sbxUpdate = SbxCore.getUrl("update");
+    private final String sbxUpdate = SbxCore.getUrl("update");
 
-    private String sbxDelete = SbxCore.getUrl("delete");
+    private final String sbxDelete = SbxCore.getUrl("delete");
 
-    private String sbxLogin = SbxCore.getUrl("login");
+    private final String sbxLogin = SbxCore.getUrl("login");
 
-    private String sbxInsert = SbxCore.getUrl("row");
-    private String sbxSendEMail = SbxCore.getUrl("sendMail");
+    private final String sbxInsert = SbxCore.getUrl("row");
 
-    private String sbxRun = SbxCore.getUrl("cloudScriptRun");
+    private final String sbxSendEMail = SbxCore.getUrl("sendMail");
+
+    private final String sbxRun = SbxCore.getUrl("cloudScriptRun");
 
 
     @Override
@@ -65,8 +67,7 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
     @Override
     public <T> Mono<SbxResponse<T>> delete(Class<T> model, String body, String token) {
         try {
-            String url = sbxDelete;
-            return getSbxResponse(url, body, model, token);
+            return getSbxResponse(sbxDelete, body, model, token);
         } catch (Exception ex) {
             LOG.debug("Upsert " + model.getName() + " " + ex.getMessage());
             return handleError(ex);
@@ -74,10 +75,19 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
     }
 
     @Override
-    public <T> Mono<SbxResponse<T>> upsert(Class<T> model, String body, String token) {
+    public <T> Mono<SbxResponse<T>> update(Class<T> model, String body, String token) {
         try {
-            String url = body.contains("_KEY") ? sbxUpdate : sbxInsert;
-            return getSbxResponse(url, body, model, token);
+            return getSbxResponse(sbxUpdate, body, model, token);
+        } catch (Exception ex) {
+            LOG.debug("Upsert " + model.getName() + " " + ex.getMessage());
+            return handleError(ex);
+        }
+    }
+
+    @Override
+    public <T> Mono<SbxResponse<T>> create(Class<T> model, String body, String token) {
+        try {
+            return getSbxResponse(sbxInsert, body, model, token);
         } catch (Exception ex) {
             LOG.debug("Upsert " + model.getName() + " " + ex.getMessage());
             return handleError(ex);
@@ -98,13 +108,7 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
         ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 5000)).build();
 
-//        exchangeStrategies.messageWriters().stream()
-//                .filter(LoggingCodecSupport.class::isInstance)
-//                .forEach(writer -> ((LoggingCodecSupport)writer).setEnableLoggingRequestDetails(true));
-//
-//        HttpClient httpClient = HttpClient
-//                .create()
-//                .wiretap(true);
+
 
 
         WebClient webClient = WebClient.builder()
@@ -162,8 +166,11 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
         ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
 
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024)).build();
-
-        WebClient webClient = WebClient.builder().exchangeStrategies(exchangeStrategies).build();
+        HttpClient client = HttpClient.create()
+                .responseTimeout(Duration.ofSeconds(90));
+        WebClient webClient = WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(client))
+                .exchangeStrategies(exchangeStrategies).build();
 
 
         return webClient.post()
@@ -174,6 +181,9 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
                 .body(BodyInserters.fromValue(body))
                 .retrieve()
                 .bodyToMono(String.class)
+                .doOnError(throwable -> {
+                    LOG.error("Problems Running Data Operation => ", throwable);
+                })
                 .map(response -> {
                     try {
                         return handleSbxResponse(response, clazz);
@@ -186,7 +196,10 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
                     }
                 });
 
+
     }
+
+
 
     private <T> SbxResponse<T> handleSbxResponse(String response, Class<?> clazz) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
@@ -200,14 +213,14 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
     private <T> void mapReferences(ObjectMapper mapper, List<T> items, Class<?> clazz, HashMap<String, HashMap<String, Map<String, Object>>> fetch) {
 
         for (Field field : clazz.getDeclaredFields()) {
-            Class fieldType = field.getType();
+            var fieldType = field.getType();
             String fieldName = field.getName();
 
             if (fetch!=null && field.isAnnotationPresent(SBXReference.class)) {
 
                 SBXReference a = field.getAnnotation(SBXReference.class);
                 Map<String, Map<String, Object>> map = fetch.get(a.model());
-                LinkedList ls = new LinkedList();
+                var ls = new LinkedList<T>();
 
                 items.forEach(item -> {
 

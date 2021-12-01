@@ -2,6 +2,7 @@ package com.sbxcloud.java.spring.starter.sbxcore.querybuilder;
 
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.HashMap;
@@ -10,6 +11,7 @@ import java.util.HashMap;
 public record Condition(@JsonProperty("ANDOR") AndOr andOr,
                         @JsonProperty("FIELD") String field,
                         @JsonProperty("OP") Operator operator,
+                        @JsonInclude(JsonInclude.Include.ALWAYS)
                         @JsonProperty("VAL") Object value) {
 
 

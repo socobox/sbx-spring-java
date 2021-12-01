@@ -12,7 +12,9 @@ public interface SbxCoreRepository {
 
     <T> Mono<SbxResponse<T>> find(Class<T> model, String body, String token);
 
-    <T> Mono<SbxResponse<T>> upsert(Class<T> model, String body, String token);
+    <T> Mono<SbxResponse<T>> update(Class<T> model, String body, String token);
+
+    <T> Mono<SbxResponse<T>> create(Class<T> model, String body, String token);
 
     <T> Mono<SbxResponse<T>> delete(Class<T> model, String body, String token);
 

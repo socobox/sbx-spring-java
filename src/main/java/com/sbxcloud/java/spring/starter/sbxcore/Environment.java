@@ -1,10 +1,12 @@
 package com.sbxcloud.java.spring.starter.sbxcore;
 
 
+import org.springframework.util.StringUtils;
+
 public class Environment {
 
     private Integer domain;
-    private String baseUrl = "https://sbxcloud.com/api";
+    private String baseUrl = StringUtils.hasText(System.getenv("SBX_HOST")) ?System.getenv("SBX_HOST"):"https://sbxcloud.com/api";
     private String appKey;
 
 
