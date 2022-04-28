@@ -71,6 +71,10 @@ public class SbxCore {
         return new Find<>(clazz, sbxCoreRepository, token);
     }
 
+    public Find<Map> findAsMap(String model, String token) {
+        return new Find<>(model, Map.class, sbxCoreRepository, token);
+    }
+
 
     /**
      * Utility method to convert a JSON string to a CloudScript response so you can test with simple JSON strings.
@@ -101,9 +105,18 @@ public class SbxCore {
         return sbxCoreRepository.update(clazz, body, token);
     }
 
+    public Mono<SbxResponse<Map>> updateRaw(String model,List<Map> data,String token) {
+        String body = QueryBuilder.upsert().setModel(model).setDomain(SbxCore.environment.getDomain()).addObjects(data).compile();
+        return sbxCoreRepository.update(Map.class, body, token);
+    }
+
 
     public <T> Mono<SbxResponse<T>> update(Class<T> clazz, T object,String token) {
         return update(clazz, Collections.singletonList(object),token);
+    }
+
+    public Mono<SbxResponse<Map>> updateRaw(String model, Map object,String token) {
+        return updateRaw(model, Collections.singletonList(object),token);
     }
 
     public <T> Mono<SbxResponse<T>> create(Class<T> clazz , List<T> data,String token) {
@@ -114,6 +127,15 @@ public class SbxCore {
 
     public <T> Mono<SbxResponse<T>> create(Class<T> clazz, T object,String token) {
         return create(clazz, Collections.singletonList(object),token);
+    }
+
+    public Mono<SbxResponse<Map>> createRaw(String model, List<Map> data,String token) {
+        String body = QueryBuilder.upsert().setModel(model).setDomain(SbxCore.environment.getDomain()).addObjects(data).compile();
+        return sbxCoreRepository.create(Map.class, body, token);
+    }
+
+    public Mono<SbxResponse<Map>> createRaw(String model, Map object,String token) {
+        return createRaw(model, Collections.singletonList(object),token);
     }
 
     public <T> Mono<SbxResponse<T>> delete(Class<T> clazz, List<String> keys,String token) {

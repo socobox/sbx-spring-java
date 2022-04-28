@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import com.sbxcloud.java.spring.starter.sbxcore.SBXMapper;
 import com.sbxcloud.java.spring.starter.sbxcore.SbxCore;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.login.LoginResponse;
@@ -57,6 +58,7 @@ class StarterApplicationTests {
   @Test
   void csv(){
 
+    System.out.println("T1=====");
 
         var res = svc.find(State.class, token)
           .andWhereIsNotNull("name")
@@ -64,23 +66,24 @@ class StarterApplicationTests {
           .flatMap(it -> {
             var states = new HashMap<String, State>();
             it.getResults().forEach(state -> {
+              System.out.println(state.code);
               states.put(state.getCode(), state);
             });
 
-            var muns = loadFiles();
-            var cities = muns.keySet().stream().map(mun -> {
-              var m =  new City();
-              var munArray = muns.get(mun);
-              m.setName(munArray.get(5));
-              if(!states.containsKey(munArray.get(0))){
-                System.out.println(munArray.get(0));
-                System.out.println(munArray);
-              }
-              m.setState(states.get(munArray.get(0)).getKey());
-              m.setCode(munArray.get(1));
-              System.out.println(m);
-              return m;
-            }).collect(Collectors.toList());
+//            var muns = loadFiles();
+//            var cities = muns.keySet().stream().map(mun -> {
+//              var m =  new City();
+//              var munArray = muns.get(mun);
+//              m.setName(munArray.get(5));
+//              if(!states.containsKey(munArray.get(0))){
+//                System.out.println(munArray.get(0));
+//                System.out.println(munArray);
+//              }
+//              m.setState(states.get(munArray.get(0)).getKey());
+//              m.setCode(munArray.get(1));
+//              System.out.println(m);
+//              return m;
+//            }).collect(Collectors.toList());
 
 
             return Mono.just(it);
@@ -93,21 +96,49 @@ class StarterApplicationTests {
 
   }
 
-  private HashMap<String,List<String>> loadFiles(){
-    List<List<String>> records = new ArrayList<List<String>>();
-    var mun = new HashMap<String,List<String>>();
-    try (CSVReader csvReader = new CSVReader(new FileReader("/Users/hansospina/Downloads/Book1.csv"));) {
-      String[] values = null;
-      while ((values = csvReader.readNext()) != null) {
-        records.add(Arrays.asList(values));
-        mun.put(values[1], Arrays.asList(values));
-      }
-      return mun;
-    } catch (IOException | CsvValidationException e) {
-      e.printStackTrace();
-      throw new RuntimeException(e);
-    }
+  @Order(1)
+  @Test
+  void findAsMap(){
+    System.out.println("T2=====");
+
+    var res = svc.findAsMap("state", token)
+        .andWhereIsNotNull("name")
+        .loadAllPages()
+        .flatMap(it -> {
+          var states = new HashMap<String, State>();
+          it.getResults().forEach(state -> {
+            var w = new SBXMapper(state);
+            System.out.println(w.getString("code"));
+          });
+
+
+
+
+          return Mono.just(it);
+
+        });
+
+    StepVerifier.create(res).expectNextMatches(SbxResponse::getSuccess).verifyComplete();
+
+
+
   }
+
+//  private HashMap<String,List<String>> loadFiles(){
+//    List<List<String>> records = new ArrayList<List<String>>();
+//    var mun = new HashMap<String,List<String>>();
+//    try (CSVReader csvReader = new CSVReader(new FileReader("/Users/hansospina/Downloads/Book1.csv"));) {
+//      String[] values = null;
+//      while ((values = csvReader.readNext()) != null) {
+//        records.add(Arrays.asList(values));
+//        mun.put(values[1], Arrays.asList(values));
+//      }
+//      return mun;
+//    } catch (IOException | CsvValidationException e) {
+//      e.printStackTrace();
+//      throw new RuntimeException(e);
+//    }
+//  }
 
   public static String capitalize(String str)
   {

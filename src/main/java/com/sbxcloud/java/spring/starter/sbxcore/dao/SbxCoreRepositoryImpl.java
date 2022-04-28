@@ -8,11 +8,15 @@ import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxCloudScriptResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.domain.SbxResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.login.LoginResponse;
 import com.sbxcloud.java.spring.starter.sbxcore.util.SBXReference;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ClientHttpConnector;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.http.codec.LoggingCodecSupport;
 import org.springframework.stereotype.Repository;
@@ -22,6 +26,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.tcp.TcpClient;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -69,7 +74,7 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
         try {
             return getSbxResponse(sbxDelete, body, model, token);
         } catch (Exception ex) {
-            LOG.debug("Upsert " + model.getName() + " " + ex.getMessage());
+            LOG.debug("Delete " + model.getName() + " " + ex.getMessage());
             return handleError(ex);
         }
     }
@@ -163,13 +168,20 @@ public class SbxCoreRepositoryImpl implements SbxCoreRepository {
 
     private <T> Mono<SbxResponse<T>> getSbxResponse(String url, String body, Class<?> clazz, String token) throws IOException {
 
+        var httpClient =
+                HttpClient.create()
+                        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
+                        .doOnConnected(connection ->
+                                connection.addHandlerLast(new ReadTimeoutHandler(2000))
+                                        .addHandlerLast(new WriteTimeoutHandler(2000)));
+
         ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
 
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024)).build();
         HttpClient client = HttpClient.create()
                 .responseTimeout(Duration.ofSeconds(90));
         WebClient webClient = WebClient.builder()
-                .clientConnector(new ReactorClientHttpConnector(client))
+                .clientConnector( new ReactorClientHttpConnector(httpClient.wiretap(false)))
                 .exchangeStrategies(exchangeStrategies).build();
 
 

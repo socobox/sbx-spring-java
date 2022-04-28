@@ -41,6 +41,15 @@ public final class Find<T> {
         this.query = QueryBuilder.find().setDomain(domain).setModel(model);
     }
 
+    public Find(String model, Class<T> type, SbxCoreRepository sbxCoreRepository, String token) {
+        this.sbxCoreRepository = sbxCoreRepository;
+        this.type = type;
+        this.token = token;
+        //String model = model;//type.getAnnotation(SBXModel.class).value();
+        Integer domain = SbxCore.environment.getDomain();
+        this.query = QueryBuilder.find().setDomain(domain).setModel(model);
+    }
+
     public String compile() {
         return this.query.compile();
     }
